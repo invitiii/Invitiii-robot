@@ -1,11 +1,8 @@
 import pandas as pd
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
 from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
 import asyncio
-import os
-import json
 from datetime import datetime
 import pytz
 import os
@@ -15,43 +12,7 @@ from googleapiclient.discovery import build
 from google.oauth2.service_account import Credentials
 from math import radians, sin, cos, sqrt, atan2
 
-# إعداد بيانات اعتماد Google من متغيرات البيئة
-service_account_info = {
-    "type": "service_account",
-    "project_id": os.getenv("GOOGLE_PROJECT_ID"),
-    "private_key_id": os.getenv("GOOGLE_PRIVATE_KEY_ID"),
-    "private_key": os.getenv("GOOGLE_PRIVATE_KEY").replace('\\n', '\n'),
-    "client_email": os.getenv("GOOGLE_CLIENT_EMAIL"),
-    "client_id": os.getenv("GOOGLE_CLIENT_ID"),
-    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-    "token_uri": "https://oauth2.googleapis.com/token",
-    "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-    "client_x509_cert_url": os.getenv("GOOGLE_CLIENT_X509_CERT_URL")
-}
-
-scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive", "https://www.googleapis.com/auth/calendar"]
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-GOOGLE_SHEET_NAME = "بيانات الحفل"
-TIMEZONE = "Asia/Kuwait"
-
-SERVICE_ACCOUNT_INFO = json.loads(os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"])
-
-creds = Credentials.from_service_account_info(SERVICE_ACCOUNT_INFO, scopes=scopes)
-gc = gspread.authorize(creds)
-sheet = gc.open(GOOGLE_SHEET_NAME).sheet1
-calendar_service = build("calendar", "v3", credentials=creds)
-
-# فتح الشيت
-sheet = gc.open(GOOGLE_SHEET_NAME)
-employee_sheet = sheet.worksheet("employees")
-employee_data = employee_sheet.get_all_records()
-employee_df = pd.DataFrame(employee_data)
-employee_df["chat_id"] = employee_df["chat_id"].astype(str)
-
-
-sent_employees = []
-selected_employee = None
-
+# الإحداثيات لكل منطقة
 area_coords = {
     "مدينة الكويت": (29.3759, 47.9774), "السالمية": (29.3339, 48.0760), "حولي": (29.3322, 48.0280),
     "الجابرية": (29.3147, 48.0404), "الرميثية": (29.3113, 48.0747), "بيان": (29.3074, 48.0471),
@@ -77,12 +38,39 @@ def calculate_distance_km(coord1, coord2):
     c = 2 * atan2(sqrt(a), sqrt(1 - a))
     return R * c
 
+# الإعدادات العامة
+TIMEZONE = "Asia/Kuwait"
+GOOGLE_SHEET_NAME = "بيانات الحفل"
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+
+# المصادقة على Google APIs
+SERVICE_ACCOUNT_INFO = json.loads(os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"])
+scopes = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive",
+    "https://www.googleapis.com/auth/calendar"
+]
+creds = Credentials.from_service_account_info(SERVICE_ACCOUNT_INFO, scopes=scopes)
+gc = gspread.authorize(creds)
+calendar_service = build("calendar", "v3", credentials=creds)
+
+# قراءة بيانات الحفل والموظفات
+sheet = gc.open(GOOGLE_SHEET_NAME)
+event_sheet = sheet.worksheet("Sheet1")  # أو غير الاسم إذا مختلف
+employee_sheet = sheet.worksheet("employees")
+employee_df = pd.DataFrame(employee_sheet.get_all_records())
+employee_df["chat_id"] = employee_df["chat_id"].astype(str)
+
+sent_employees = []
+selected_employee = None
+
+# التفاعل مع الرسائل
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global selected_employee, sent_employees
-
     msg = update.message.text.strip().lower()
     chat_id = str(update.effective_chat.id)
     user_name = update.effective_user.full_name
+
     if msg == "موافقة" and chat_id in sent_employees and selected_employee is None:
         selected_employee = chat_id
         await context.bot.send_message(chat_id=chat_id, text="✅ تم تأكيد مشاركتك في الحفل. شكراً على تعاونك.")
@@ -93,8 +81,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif selected_employee:
         await context.bot.send_message(chat_id=chat_id, text="تم بالفعل اختيار موظفة لهذا الحفل.")
 
+# إضافة الحدث إلى Google Calendar
 async def add_event_to_calendar(employee_name):
-    rows = sheet.get_all_records()
+    rows = event_sheet.get_all_records()
     latest_event = rows[-1]
     summary = latest_event['اسم الحفل']
     location = latest_event['اللوكيشن (اختياري)']
@@ -114,15 +103,18 @@ async def add_event_to_calendar(employee_name):
     }
     calendar_service.events().insert(calendarId='primary', body=event).execute()
 
+# تنفيذ البوت
 async def main():
     app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT, handle_message))
-    rows = sheet.get_all_records()
+
+    rows = event_sheet.get_all_records()
     latest_event = rows[-1]
     target_area = latest_event['منطقة الحفل']
 
     global sent_employees
     sent_employees = []
+
     if target_area in area_coords:
         target_coord = area_coords[target_area]
         for _, row in employee_df.iterrows():
@@ -133,16 +125,16 @@ async def main():
                     sent_employees.append(str(row["chat_id"]))
 
     for cid in sent_employees:
-       await app.bot.send_message(
-    chat_id=cid,
-    text=f"""يوجد حفل جديد في {target_area}.
+        await app.bot.send_message(
+            chat_id=cid,
+            text=f"""يوجد حفل جديد في {target_area}.
 هل أنتِ متاحة؟
 الرجاء الرد بـ 'موافقة'."""
-)
-
+        )
 
     await app.run_polling()
 
+# بدء الخدمة
 if __name__ == "__main__":
     import nest_asyncio
     nest_asyncio.apply()
