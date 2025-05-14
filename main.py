@@ -61,6 +61,7 @@ sheet2 = gc.open(GOOGLE_SHEET_NAME2)
 employee_sheet = sheet.get_worksheet(0)
 event_sheet = sheet.get_worksheet(0)  # أو غير الاسم إذا مختلف
 employee_df = pd.DataFrame(employee_sheet.get_all_records())
+print("Employee Columns:", employee_df.columns)
 employee_df["chat_id"] = employee_df["chat_id"].astype(str)
 
 sent_employees = []
