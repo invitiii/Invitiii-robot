@@ -90,7 +90,7 @@ async def add_event_to_calendar(employee_name):
     summary = latest_event['اسم الحفل']
     location = latest_event['اللوكيشن (اختياري)']
     description = f"نوع الحجز: {latest_event['نوع الحجز']}"
-موظفة: {employee_name}"
+    description = f'موظفة: {employee_name}'
     date = latest_event['التاريخ']
     start_time = latest_event['الوقت من']
     end_time = latest_event['الوقت إلى']
