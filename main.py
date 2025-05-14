@@ -4,6 +4,8 @@ from oauth2client.service_account import ServiceAccountCredentials
 from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
 import asyncio
+import os
+import json
 from datetime import datetime
 import pytz
 import os
@@ -32,7 +34,9 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 GOOGLE_SHEET_NAME = "بيانات الحفل"
 TIMEZONE = "Asia/Kuwait"
 
-creds = Credentials.from_service_account_info(service_account_info, scopes=scopes)
+SERVICE_ACCOUNT_INFO = json.loads(os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"])
+
+creds = Credentials.from_service_account_info(SERVICE_ACCOUNT_INFO, scopes=scopes)
 gc = gspread.authorize(creds)
 sheet = gc.open(GOOGLE_SHEET_NAME).sheet1
 calendar_service = build("calendar", "v3", credentials=creds)
