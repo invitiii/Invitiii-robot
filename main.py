@@ -41,6 +41,7 @@ def calculate_distance_km(coord1, coord2):
 # الإعدادات العامة
 TIMEZONE = "Asia/Kuwait"
 GOOGLE_SHEET_NAME = "بيانات الحفل"
+GOOGLE_SHEET_NAME2 = "employees"
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
 # المصادقة على Google APIs
@@ -56,8 +57,9 @@ calendar_service = build("calendar", "v3", credentials=creds)
 
 # قراءة بيانات الحفل والموظفات
 sheet = gc.open(GOOGLE_SHEET_NAME)
-event_sheet = sheet.worksheet("Sheet1")  # أو غير الاسم إذا مختلف
-employee_sheet = sheet.worksheet("employees")
+sheet2 = gc.open(GOOGLE_SHEET_NAME2)
+employee_sheet = sheet.get_worksheet(0)
+event_sheet = sheet.get_worksheet(0)  # أو غير الاسم إذا مختلف
 employee_df = pd.DataFrame(employee_sheet.get_all_records())
 employee_df["chat_id"] = employee_df["chat_id"].astype(str)
 
