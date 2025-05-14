@@ -1,0 +1,6 @@
+utility-cumulus-*.json
+.env
+__pycache__/
+*.pyc
+attached_assets/
+*.xlsx
