@@ -89,8 +89,7 @@ async def add_event_to_calendar(employee_name):
     latest_event = rows[-1]
     summary = latest_event['اسم الحفل']
     location = latest_event['اللوكيشن (اختياري)']
-    description = f"نوع الحجز: {latest_event['نوع الحجز']}"
-    description = f'موظفة: {employee_name}'
+    description = f"نوع الحجز: {latest_event['نوع الحجز']} - موظفة: {employee_name}"
     date = latest_event['التاريخ']
     start_time = latest_event['الوقت من']
     end_time = latest_event['الوقت إلى']
@@ -125,9 +124,14 @@ async def main():
                     sent_employees.append(str(row["chat_id"]))
 
     for cid in sent_employees:
-        await app.bot.send_message(chat_id=cid, text=f"يوجد حفل جديد في {target_area}.
+       await app.bot.send_message(
+    chat_id=cid,
+    text=f"""يوجد حفل جديد في {target_area}.
 هل أنتِ متاحة؟
-الرجاء الرد بـ 'موافقة'.")
+الرجاء الرد بـ 'موافقة'."""
+)
+
+
     await app.run_polling()
 
 if __name__ == "__main__":
