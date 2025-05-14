@@ -43,7 +43,7 @@ calendar_service = build("calendar", "v3", credentials=creds)
 
 # فتح الشيت
 sheet = gc.open(GOOGLE_SHEET_NAME)
-employee_sheet = sheet.worksheet("بيانات الموظفين")
+employee_sheet = sheet.worksheet("employees")
 employee_data = employee_sheet.get_all_records()
 employee_df = pd.DataFrame(employee_data)
 employee_df["chat_id"] = employee_df["chat_id"].astype(str)
